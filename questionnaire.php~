@@ -1,0 +1,307 @@
+<?php
+ini_set('display_errors', 1); // エラー出力する場合
+require('./init.php'); // 設定ファイル読込
+session_start(); // セッション開始
+if($debug_mode) {
+  print('$_SESSION = ');print_r($_SESSION);print('<br/>');} // $_SESSIONを表示
+
+// 変数定義
+$ques_total_no = count($ques_list); // アンケート数
+if($debug_mode) {
+  print('<br/>$stimuli_file_names = '); print_r($stimuli_file_names);
+  echo '<br/>$_SESSION["stimuli_no"] = ', $_SESSION["stimuli_no"], ', $ques_total_no = ', $ques_total_no;
+}
+
+// 関数定義
+function createCombination($n, $r) { // [0,1,..,$n-1]から$n_C_$rのリストを返す
+  if ($n < $r) {return array(); }
+  if (!$r) {return array(array()); }
+  if ($n == $r) {return array(range(0, $n-1)); }
+  $return = array();
+  $n2 = $n - 1;
+  foreach (createCombination($n2, $r) as $row) {//(n-1)Crはほしい組み合わせの一部
+    $return[] = $row; }
+  foreach (createCombination($n2, $r-1) as $row) { //(n-1)C(r-1)にn-1を追加する
+    $row[] = $n2;
+    $return[] = $row; }
+  return $return;
+}
+
+function save_log($paired_comparison, $ques_total_no) { // データのファイル保存関数
+  $results = "";
+  // インデックス行生成：刺激ファイル名1:ファイル名2:..,Q1答,..,Qnの答,刺激クリック1(0/1),..,刺激クリックn(0/1),ページ滞在時間(sec)
+  $rindex = "\nStimuli_file";
+  for($i = 0; $i < $ques_total_no; $i++) {
+    $ii = $i+1;
+    $rindex = $rindex . ",Ans-" . $ii; }
+  if($paired_comparison == 1) { // 一対比較の場合は刺激クリック数=2
+    $rindex = $rindex . ",Sclick-1,Sclick-2";}
+  else {$rindex = $rindex . ",Sclick-1";}
+  $rindex = $rindex . ",TimeOnPage(sec)"; //滞在時間
+  $rindex = $rindex . "\n"; //改行追加
+  for($i = 0; $i < $_SESSION["stimuli_no"]; $i++) { // 結果リスト作成 $i:刺激番号
+    $stimuli_id = $_SESSION["result_log"][$i]["stimuli"];
+    $stimuli_list = ""; //刺激ファイル名(リスト)
+    if(is_array($stimuli_id)) { //一対比較チェック
+      //刺激リスト生成（ファイル名:ファイル名 or 単一ファイル）
+      $stimuli_list =
+        $_SESSION["s_seq"][$stimuli_id[0]] . ":"
+      . $_SESSION["s_seq"][$stimuli_id[1]];
+    } else {$stimuli_list = $_SESSION["s_seq"][$stimuli_id]; }
+    $answer_list = "";
+    for($j = 1; $j < $ques_total_no+1; $j++) { //答えリスト生成
+      $qn = "q" . $j;
+      $answer_list .= "," . $_SESSION["result_log"][$i][$qn];
+    }
+    if($paired_comparison == 1) { // 一対比較の場合は刺激クリック数=2
+      $sclick_log = $_SESSION["click_log"][$i][0] . ',' . $_SESSION["click_log"][$i][1] . ',';
+    } else {$sclick_log = $_SESSION["click_log"][$i][0] . ',';}
+    $results .= $stimuli_list . $answer_list . ','
+              . $sclick_log . $_SESSION["time_on_page"][$i] . "\n";
+  }
+  $file_name = "./log/" . $_SESSION["log_file_name"]; // ファイル開閉、書き込み
+  $contents = $rindex . $results;
+  file_put_contents($file_name, $contents, FILE_APPEND | LOCK_EX);
+}
+
+// **** メインプログラム ****
+
+if(!isset($_SESSION["r_count"]))
+  print("<br><br>スタートページから開始してください．");
+// 刺激の順序リスト$_SESSION["s_seq"][n] = n個目の刺激ファイル名
+
+if($_POST) { // [次のページ]ボタンが押されたら起動
+  if($debug_mode) {echo '<br/>** POST発火 **'; }
+  // qnの答えを$_SESSION["result_log"][$_SESSION["r_count"]][$qn]へ代入
+  for($i=1; $i < (count($ques_list)+1); $i++) {
+    $qn = "q"."$i"; // qnラベル作成
+    if($debug_mode) {print('<br/>$qn = ');print("$qn"); }
+    $_SESSION["result_log"][$_SESSION["r_count"]][$qn] = $_REQUEST[$qn];
+    if($debug_mode) {echo '<br/>$_SESSION["result_log"][$_SESSION["r_count"]][$qn] = ', $_SESSION["result_log"][$_SESSION["r_count"]][$qn];}
+    // 刺激を$_SESSION["result_log"][$_SESSION["r_count"]]["stimuli"]へ代入
+    if($paired_comparison == 1) { // 一対比較の場合は$stimuli=刺激ペア[m,n]
+      $stimuli = $_SESSION["pair_list"][$_SESSION["r_count"]];} else {
+        $stimuli = $_SESSION["s_seq"][$_SESSION["r_count"]]; }//それ以外はm
+    $_SESSION["result_log"][$_SESSION["r_count"]]["stimuli"] = $stimuli;//代入
+    if($debug_mode) {
+      echo '<br/> $_SESSION["result_log"][', $_SESSION["r_count"], ']["stimuli"] = ';
+      print_r($_SESSION["result_log"][$_SESSION["r_count"]]["stimuli"]);}
+  }
+  // 経過時間を代入
+  $start_time = $_SESSION["time_on_page"][$_SESSION["r_count"]];
+  $finish_time = microtime(true);
+  if($debug_mode) {
+    $sarrTime = explode('.', $start_time); //microtimeを.で分割
+    $farrTime = explode('.', $finish_time); //microtimeを.で分割
+    echo '<br/>Start_time = ', date('Y-m-d H:i:s', $sarrTime[0]), ' ', $sarrTime[1], '<br/>Finish_time = ', date('Y-m-d H:i:s', $farrTime[0]), ' ', $farrTime[1], '<br/>Shori_time = ', round($finish_time - $start_time, 2);
+  }
+  $_SESSION["time_on_page"][$_SESSION["r_count"]] =
+    round($finish_time - $start_time, 2); // 小数点以下2桁で丸める
+  //最終ラウンドかチェック
+  if($_SESSION["r_count"] >= $_SESSION["stimuli_no"] - 1) {
+    save_log($paired_comparison, $ques_total_no); // ログをファイル保存
+    header("Location:finish.php"); //終了ページへリダイレクト
+    exit;
+  }
+  if(isset($_SESSION["r_count"])) {
+    $_SESSION["r_count"]++;
+    if($debug_mode) {
+      echo '<br/>$_SESSION[\"r_count\"]をインクリメント = ',$_SESSION["r_count"];}
+  } //$_SESSION["r_count"]をインクリメント
+}
+
+if($_SESSION["r_count"]==0){ // 最初の試行で初期設定
+  $_SESSION["s_seq"] = $stimuli_file_names; //s_seqを刺激ファイル名リストで初期化
+  shuffle($_SESSION["s_seq"]); // ランダムにシャッフル（ペア生成にも利用）
+  if($debug_mode) {
+    print('<br/><br/> checked_r_count = '); print_r($_SESSION["r_count"]);
+    print('<br/><br/> $_SESSION["s_seq"] = '); print_r($_SESSION["s_seq"]);}
+  if($paired_comparison == 1) { //一対比較の場合
+    //全ペア生成 _SESSION["pair_list"][n] = [刺激1, 刺激2]
+    //セッション変数へ
+    $_SESSION["pair_list"] = createCombination($_SESSION["stimuli_no"], 2);
+    //    print('<br/>$_SESSION["pair_list"] = ');print_r($_SESSION["pair_list"]);
+    shuffle($_SESSION["pair_list"]); // ペアリストのシャッフル
+    for($i = 0; $i < count($_SESSION["pair_list"]); $i++) {
+      shuffle($_SESSION["pair_list"][$i]); // ペア内のシャッフル
+    }
+    if(isset($_SESSION["stimuli_no"])) { // ペア数で刺激数を更新
+      $_SESSION["stimuli_no"] = count($_SESSION["pair_list"]);}//stimuli_noを更新
+    if($debug_mode) {// ペアリスト表示
+      print('<br/>$_SESSION["pair_list"] = ');print_r($_SESSION["pair_list"]);
+      echo '<br/>$_SESSION["stimuli_no"]_updated = ', $_SESSION["stimuli_no"];
+    }
+  }
+  // クリックログをすべて0で初期化
+  if($paired_comparison == 1) {$sbutton_no = 2; } else {$sbutton_no = 1;} //一対比較
+  for($i = 0; $i < $_SESSION["stimuli_no"]; $i++) {
+    for($j = 0; $j < $sbutton_no; $j++) {
+      $_SESSION["click_log"][$i][$j] = 0;
+    }
+  }
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Script-Type" content="text/javascript">
+    <link rel="stylesheet" href="style.css" type="text/css">
+    <title>音に関する調査</title>
+    <script type="text/javascript" src="js/jquery-3.3.1.min.js"></script>
+    <script src="js/click-log.js"></script>
+    <script type="text/javascript">
+     history.forward(); //ブラウザの戻るボタンを無効に
+     var number_of_q = "<?= count($ques_list); ?>";
+     var clicked_0 = 0; var clicked_1 = 0;
+     function s_play(sound_id) { // 音再生の関数 "Soundid"
+       //         if(sound_id == 1) {clicked_0 = 1;}
+       //         else {clicked_1 = 1;}// クリックフラグ
+       ClickLog(sound_id);
+       // alert(clicked_0); alert(clicked_1);
+       document.getElementById("Sound-" + sound_id).play();
+     }
+
+     function get_checked_value (id) {
+       var qlist = document.getElementsByName(id);
+       for(var i = 0 ; i < qlist.length ; i++){
+         if (qlist[i].checked == true){
+           return qlist[i].value;
+         }
+       }
+       return null;
+     }
+
+     function checkForm(){
+       var q_value = new Array();
+       for(i=1; i<=number_of_q; i++){
+         var str = "q" + i;
+         q_value[i] = get_checked_value(str);
+       }
+       var msg = "以下の質問の入力を確認してください．\n";
+       var msg_flag = 0;
+       for(i=1; i <= number_of_q; i++){
+         if(!q_value[i]) {
+	         msg = msg + "Q" + i + ", ";
+	         msg_flag = 1;
+         };
+       }
+       msg = msg.substring(1,msg.length - 2);
+       if (msg_flag) {alert(msg); return false;}
+       return true;
+     }
+    </script>
+  </head>
+  <body>
+    <div id="header">
+      <?php
+      $sti_name = $_SESSION["stimuli_no"];
+      echo $_SESSION["r_count"] + 1,"問目/${sti_name}問";
+      ?>
+    </div>
+    <div id="body">
+      <?php
+      // スタートタイム設定
+      $_SESSION["time_on_page"][$_SESSION["r_count"]] = microtime(true);
+      // *********************
+      switch ($stimulus_modality){
+        case 's': // 音声刺激の場合
+          $sfile0 =
+            $_SESSION["s_seq"][$_SESSION["pair_list"][$_SESSION["r_count"]][0]];
+          //1つ目の音声ファイル
+          $sfile1 =
+            $_SESSION["s_seq"][$_SESSION["pair_list"][$_SESSION["r_count"]][1]];
+          //2つ目の音声ファイル
+          if($debug_mode) {
+            print('<br/> r_count = '); print_r($_SESSION["r_count"]);
+            print('<br/> $sfile0 = '); print_r($sfile0);
+            print('<br/> $sfile1 = '); print_r($sfile1);
+            print('<br/> $stimulus_modality = '); print($stimulus_modality);
+          }
+          // ***************************************************
+          print("$toi_explanation"); // 各問の説明を表示
+          print("<audio id=\"Sound-0\" src=\"av-files/$sfile0\"></audio>
+              <audio id=\"Sound-1\" src=\"av-files/$sfile1\"></audio>");
+          print('<form method="POST" action="">
+              <input type="button" onclick="s_play(0)" value="音Aの再生" name="subm0">
+              <input type="button" onclick="s_play(1)" value="音Bの再生" name="subm0">
+              </form>
+          ');
+      }
+      /*
+         case m: // 動画刺激の場合
+         print("$toi_explanation"); // 各問の説明を表示
+         //  print('<br/> $sfile0= '); print_r($sfile0);
+         $sfile0 = 'ahoaho';
+         print("<p>再生ボタンをクリックして音をよく聴いてから、以下の質問項目に回答してください。</p> <div align="center"> <audio src="av-files/$sfile0" controls></audio>");
+       */
+      ?>
+      <!-- ***************************************************  -->
+    </div>
+    <form name="questions" method="post" action=""
+          onSubmit="return checkForm()">
+      <?php
+      $n = 0;
+      foreach($ques_list as $value ){
+        $n++;
+        if(count($ques_list)==1) { // Qが１つならQn表示なし
+          print("<p><question> {$value}</question><br>");
+        } else {print("<p><question>Q$n: {$value}</question><br>");
+        }
+        print <<<EOT
+        <label><input type="radio" name="q$n" value="1">
+          音Aの方が長く感じた</label>
+        <label><input type="radio" name="q$n" value="2">
+          音Bの音の方が長く感じた</label>
+        <label><input type="radio" name="q$n" value="3">
+          どちらも同じ長さに感じた</label>
+<!--
+ <table border="0" align="center">
+ <tr style="font-size:12px"; align="center">
+       <tr style="font-size:14px"; align="center">
+				 <td width="200">最初の音の方が長く感じた</td>
+				 <td width="200">2つ目の音の方が長く感じた</td>
+				 <td width="200">どちらも同じ長さに感じた</td>
+
+				 <td width="100">全く思わない</td>
+				 <td width="100">思わない</td>
+				 <td width="100">あまり思わない</td>
+  			 <td width="100">どちらでもない</td>
+				 <td width="100">やや思う</td>
+				 <td width="100">思う</td>
+				 <td width="100">強く思う</td>
+				 </tr>
+				 <tr align="center">
+				 <td>1</td>
+				 <td>2</td>
+				 <td>3</td>
+				 <td>4</td>
+				 <td>5</td>
+				 <td>6</td>
+				 <td>7</td>
+				 </tr>
+				 <tr align="center">
+				 <td><input type="radio" name="q$n" value="1"></td>
+				 <td><input type="radio" name="q$n" value="2"></td>
+				 <td><input type="radio" name="q$n" value="3"></td>
+				 <td><input type="radio" name="q$n" value="4"></td>
+				 <td><input type="radio" name="q$n" value="5"></td>
+				 <td><input type="radio" name="q$n" value="6"></td>
+				 <td><input type="radio" name="q$n" value="7"></td>
+				 </tr>
+				 </table>
+-->
+				 </p>
+EOT;
+      }
+
+      ?>
+      <p>
+        <input type="submit" value="次のページへ" name="submit">
+      </p>
+
+    </div>
+  </body>
+</html>

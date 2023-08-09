@@ -1,0 +1,55 @@
+<?php
+//ini_set('display_errors', 1); // エラー出力する場合
+require('./init.php'); // 設定ファイル読込
+// セッションを完全に削除 //
+$_SESSION = array(); // セッション変数を全て解除する
+// セッションを切断するにはセッションクッキーも削除する。
+// Note: セッション情報だけでなくセッションを破壊する。
+if (isset($_COOKIE[session_name()])) {
+      setcookie(session_name(), '', time()-42000, '/'); }
+session_destroy(); // 最終的に、セッションを破壊する
+// print('<br /> $_SESSION = '); print_r($_SESSION); // $_SESSIONを表示
+?>
+
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>参加者情報入力</title>
+    <script type="text/javascript">
+     history.forward(); // ブラウザバックを無効に
+    </script>
+    <script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
+    <script type="text/javascript" src="js/input.js"></script>
+    <link rel="stylesheet" href="style.css" type="text/css">
+  </head>
+  <body>
+    <?php
+    echo $parti_consent; // 参加の承諾文 in init.php
+    ?>
+    <h2>参加者情報の入力</h2>
+    <p>
+      あなたの情報を入力して下さい．<br>
+      入力がすんだら，間違いがないかよく確認して，[次ページ]ボタンをクリックして下さい．</p>
+    <form id="form" action="instruction.php" method="POST">
+      <input type="hidden" name = "log_file_name" id="log_file_name">
+      <input type="hidden" name = "time_stamp" id="time_stamp">
+      <p>
+        ●性別：
+        <input type="radio" name="gender" value="m" id="gender_label1"><label for="gender_label1">男</label>
+        <input type="radio" name="gender" value="f" id="gender_label2"><label for="gender_label2">女</label>
+      </p>
+      <p>
+        ●年齢（半角数字．例：25）：
+        <input type="text" name="age" size="2" maxlength="2">
+      </p>
+      <p>
+        <button type="button" name="send" onClick="reload_win()">
+          <!-- reload_win() is defined in ../js/input.js -->
+          <font size="3">次ページ</font>
+        </button>
+      </p>
+    </form>
+    </div>
+
+  </body>
+</html>

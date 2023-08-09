@@ -1,0 +1,81 @@
+body {
+    margin:0px auto; 
+    width:700px;
+}
+
+#header{
+    margin:0px auto; 
+    width:700px;
+    border:3px solid;
+    padding: 10px;
+    margin-top: 20px; 
+    margin-bottom: 10px; 
+    font-size: 200%; 
+    font-weight: bold; 
+}
+
+#body{
+    margin:0px auto; 
+    width:700px;
+    padding: 10px;
+    border:3px dotted;
+}
+
+table.border {
+        border:solid 1px #999999;
+        border-collapse: collapse;
+        font-size: 100%;
+}
+
+table.center {
+    margin-left: auto; 
+    margin-right: auto;
+}
+.border td {
+     border: solid 1px #999999;
+     padding: 5px 5px; 
+}
+.border th {
+    border: solid 1px #999999;
+    padding: 5px 5px; }
+
+
+li {
+    line-height: 150%;
+}
+
+
+h2 {
+    padding: 5px; 
+    color:#fff;
+    background:#333; 
+/*    background:#4169E1; */
+}
+
+question {
+    display: block;
+    padding: 3px 8px;
+    margin-bottom: 10px;
+    border-left: 20px solid;
+    border-bottom: 1px dashed;
+    letter-spacing: 10%;
+    line-height: 150%;
+    font-size: 120%; 
+    font-weight: bold; 
+}
+
+button.button3 {
+    /* 文字サイズを1.4emに指定 */
+    font-size: 1.4em;
+    /* 文字の太さをboldに指定 */
+    font-weight: bold;
+    /* 縦方向に10px、
+     * 横方向に30pxの余白を指定 */
+    padding: 10px 30px;
+    /* 背景色を濃い青色に指定 */
+    background-color: #248;
+    /* 文字色を白色に指定 */
+    color: #fff;
+    /* ボーダーをなくす */
+    border-style: none;
+}

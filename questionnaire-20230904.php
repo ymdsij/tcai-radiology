@@ -383,12 +383,10 @@ EOT;
 		  var sel = elements[i].value ;
 		  break;}
               }
-              //  alert("sel= " + sel + " h= " + h + " len "); 
+/*               alert("sel= " + sel + " h= " + h); */
               if (sel == h) {
-                if (sel == 0) {swal("この選択はよくないかも知れません");
-                  elements[1].disabled = true; }
-                  else {swal("この選択はよくないかも知れません");
-                    elements[0].disabled = true;}// sel==1
+                if (sel == 0) {swal("この選択はよくないかも知れません"); }
+                  else {swal("この選択はよくないかも知れません");} // sel==1
                  }
 	    }
 
